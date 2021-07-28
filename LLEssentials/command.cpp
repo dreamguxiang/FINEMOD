@@ -184,6 +184,7 @@ bool onCMD_skick(CommandOrigin const& ori, CommandOutput& outp, string& target, 
 	{
 		outp.addMessage(u8"§l§6[§eMCBE §bFINE§6]§r " + _TRS("ban.notplayer"));
 	}
+	return true;
 }
 
 bool oncmd_kickall(CommandOrigin const& ori, CommandOutput& outp) {
@@ -265,6 +266,7 @@ bool onCMD_CNAME(CommandOrigin const& ori, CommandOutput& p, MyEnum<CNAMEOP> op,
 			}
 			return true;
 		}
+		return true;
 }
 
 
@@ -341,6 +343,7 @@ map<string, long > mcmc;
 std::map < string, long > ::reverse_iterator itera;
 #include<llmoney.h>
 #include <regex>
+#include <stl/static_queue.h>
 class PathNavigation;
 bool onCMD_TPR(CommandOrigin const& ori, CommandOutput& outp) {
 	WPlayer wp = MakeWP(ori).val();
@@ -452,9 +455,122 @@ bool oncmd_jzqz(CommandOrigin const& ori, CommandOutput& outp, MyEnum<JQZQOP> op
 	}
 	return false;
 }
+/*
+std::unique_ptr<KVDBImpl> bossdb;
 
+enum BBOP :int {
+	SEND = 1,
+	CLEAR = 2
+};
+enum BBOP2 :int {
+	PIN = 1,
+	UNPIN = 2,
+	LEN = 3
+};
+string pinmsg;
+int barlength;
+unsigned long long barID = 9223372036854775808ull;
+void sendClearBB(array_view<WPlayer> target) {
+	WBStream ws;
+	ws.apply(VarULong(barID), VarUInt(2));
+	MyPkt<0x4a> pk{ ws };
+	for (auto i : target) {
+		i->sendNetworkPacket(pk);
+	}
+}
+void sendBB(array_view<WPlayer> target, string const& str) {
+	WBStream ws;
+	for (auto i : target) {
+		auto& pos = i->getPos();
+		WBStream ws2(ws);
+		ws2.apply(VarULong(barID), VarULong(barID), MCString("minecraft:pig"),Vec3{ pos.x, -10, pos.z });
+		MyPkt<0xd> pk{ ws2 };
+		i->sendNetworkPacket(pk);
+	}
+	ws.apply(VarULong(barID), VarUInt(0), MCString(str), (float)((float)barlength / 100));
+	MyPkt<0x4a> pk{ ws };
+	for (auto i : target) {
+		i->sendNetworkPacket(pk);
+	}
+}
+void broadcastBB(bool show = true) {
+	static_queue<WPlayer> uview;
+	for (auto pl : liteloader::getAllPlayers()) {
+		uview.emplace_back(*pl);
+	}
+	sendClearBB(uview);
+	if (show) sendBB(uview, pinmsg);
+}
+bool onCMD2(CommandOrigin const& ori, CommandOutput& outp, MyEnum<BBOP> op, CommandSelector<Player>& scl, optional<string>& msg) {
+	auto res = scl.results(ori);
+	if (!Command::checkHasTargets(res, outp)) {
+		return false;
+	}
+	bool needsend = op == SEND ? 1 : 0;
+	static_queue<WPlayer> target;
+	for (auto i : res) {
+		target.emplace_back(*(ServerPlayer*)i);
+	}
+	sendClearBB(target);
+	if (needsend) {
+		sendBB(target, msg.value());
+	}
+	return true;
+}
+bool onCMD(CommandOrigin const& ori, CommandOutput& outp, MyEnum<BBOP2> op, optional<string>& msg) {
+	switch (op)
+	{
+	case PIN:
+		bossdb->put("BBpinmsg", msg.value());
+		pinmsg = msg.value();
+		broadcastBB();
+		break;
+	case UNPIN:
+		bossdb->del("BBpinmsg");
+		broadcastBB(false);
+		pinmsg = "";
+		break;
+	case LEN:
+		int len = std::atoi(msg.value().c_str());
+		bossdb->put("BBpinlen", to_view(len));
+		barlength = len;
+		broadcastBB();
+	}
+	return true;
+}
+
+void entry_bossbar() {
+	bossdb = MakeKVDB(GetDataPath("boss"));
+	bossdb->get("BBpinmsg", pinmsg);
+	string val;
+	if (bossdb->get("BBpinlen", val)) {
+		memcpy(&barlength, val.data(), 4);
+	}
+	Event::addEventListener([](RegCmdEV e) {
+		CMDREG::SetCommandRegistry(e.CMDRg);
+		CEnum<BBOP2> _1("bbop2", { "pin", "unpin","length" });
+		CEnum<BBOP> _2("bbop", { "send","clear" });
+		MakeCommand("bb", "bossbar command", 1);
+		CmdOverload(bb, onCMD, "operation", "msg_or_length");
+		CmdOverload(bb, onCMD2, "operation", "player", "msg");
+		});
+	Event::addEventListener([](JoinEV ev) {
+		WPlayer wp = WPlayer{ *ev.Player };
+		if (pinmsg.length()) {
+			sendBB({ wp }, pinmsg);
+		}
+		});
+	Event::addEventListener([](ChangeDimEV ev) {
+		WPlayer wp = WPlayer{ *ev.Player };
+		if (pinmsg.length()) {
+			sendBB({ wp }, pinmsg);
+		}
+		});
+}
+*/
 void REGCMD() {
 	loadCNAME();
+	//entry_bossbar();
 	Event::addEventListener([](RegCmdEV e) {
 		CMDREG::SetCommandRegistry(e.CMDRg);
 		CEnum<JQZQOP> _4("jzqz", { "open","close" });
@@ -723,6 +839,7 @@ THook(bool, "?mayPlace@BlockSource@@QEAA_NAEBVBlock@@AEBVBlockPos@@EPEAVActor@@_
 			}
 		}
 	}
+	return original(bs, blk, blkpos, a4, ac, a5);
 }
 /*
 short tickss = 0;
@@ -751,17 +868,74 @@ THook(void, "?normalTick@Player@@UEAAXXZ", Player* pl) {
 	}
 	return original(pl);
 }*/
+
+vector<string> isWord(string str) {
+	vector<string> words;
+	int t = 0, i = 0, w = 0;
+	string word;
+	while (i < str.length()) {
+		while (str[i] == ' ')
+			i++;
+		t = i;
+		w = 0;
+		while (str[i] != ' ' && i < str.length())
+		{
+			i++;
+			w++;
+		}
+		word = str.substr(t, w);
+		words.push_back(word);
+	}
+	return words;
+}
+
+bool isssad(string a1) {
+	int t = 0, i = 0, w = 0;
+	while (i < a1.length()) {
+		if (!islower(a1[i])) {
+			i++;
+		}
+		else {
+			return 1;
+		}
+	}
+	return 0;
+}
+#include <ezmc/Core/ConnectionRequest.h>
+using namespace rapidjson;
+unordered_map<string, int> DeviceOS;
 THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdentifier@@AEBVConnectionRequest@@AEAVServerPlayer@@@Z",
-	ServerNetworkHandler* a1, NetworkIdentifier* a2, struct ConnectionRequest* a3, ServerPlayer* a4) {
+	ServerNetworkHandler* nh, NetworkIdentifier* a2, ConnectionRequest* a3, ServerPlayer* a4) {
 	string mstr3 = "";
 	string mstr2 = "";
+	string serverip = "";
+	string DeviceModel = "";
+	auto map1 = a3->rawToken->dataInfo.value_.map_;
+	for (auto iter = map1->begin(); iter != map1->end(); ++iter) {
+		string s(iter->first.c_str());
+		if (s.find("ServerAddress") != s.npos) {
+			serverip = iter->second.value_.string_;
+		}
+	}
 	SymCall("?getDeviceId@ConnectionRequest@@QEBA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@XZ", void, ConnectionRequest*, string*)(a3, &mstr3);
 	auto out = SymCall("?getDeviceOS@ConnectionRequest@@QEBA?AW4BuildPlatform@@XZ", int, ConnectionRequest*, string*)(a3, &mstr2);
-	LOG1 << u8"玩家：" << a4->getNameTag() << u8" 的DeviceId：" << mstr3 << u8" 的DeviceOS：" << out << endl;
+	if (out == 1) {
+		for (auto iter = map1->begin(); iter != map1->end(); ++iter) {
+			string s(iter->first.c_str());
+			if (s.find("DeviceModel") != s.npos) {
+				DeviceModel = iter->second.value_.string_;
+				std::vector<std::string> str_list;
+				auto a = isWord(DeviceModel);
+				if (isssad(a[0])) {
+					nh->disconnectClient(*a2, u8"§6[§eMCBE FINE§6]§C不要用ToolBox进服哦~", 0);
+				}
+			}
+		}
+	}
+	LOG1 << u8"玩家：" << a4->getNameTag() << u8" 的DeviceId：" << mstr3 << u8" 的DeviceOS：" << out  << u8"线路："<< serverip << endl;
 	auto be1 = getBanEntry(offPlayer::getXUIDString(a4));
 	auto IP = liteloader::getIP(*a2);
 	auto be2 = getBanEntry(IP);
-	auto nh = mc->getServerNetworkHandler();
 	auto be3 = getBanEntry(mstr3);
 	//LOG1 << "[" << gettime() << u8" INFO][BH] IP: " << liteloader::getIP(neti) << u8" 尝试与服务器连接" << endl;
 	if (ENABLEBAN) {
@@ -770,7 +944,7 @@ THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdenti
 				removeBanEntry(offPlayer::getXUIDString(a4));
 			}
 			else {
-				nh->disconnectClient(*a2, u8"你已经被封禁", 0);
+				nh->disconnectClient(*a2, u8"§6[§eMCBE FINE§6]§C你已经被封禁", 0);
 			}
 		}
 		if (be2.set) {
@@ -778,17 +952,11 @@ THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdenti
 				removeBanEntry(IP);
 			}
 			else {
-				nh->disconnectClient(*a2, u8"你已经被封禁", 0);
-			}
-		}
-		if (be3.set) {
-			if (be2.val() != 0 && be2.val() < time(0)) {
-				removeBanEntry(mstr3);
-			}
-			else {
-				nh->disconnectClient(*a2, u8"你已经被封禁", 0);
+				nh->disconnectClient(*a2, u8"§6[§eMCBE FINE§6]§C你已经被封禁", 0);
 			}
 		}
 	}
-	return original(a1, a2, a3, a4);
+	DeviceOS[offPlayer::getRealName(a4)] = out;
+	return original(nh, a2, a3, a4);
 }
+

@@ -13,9 +13,8 @@ extern Minecraft* mc;
 extern Logger1 LOG1;
 extern playerMap<string> ORIG_NAME;
 extern unordered_map<string, string> CNAME;
-extern unordered_map<string, int> jzqz;
+extern unordered_map<string, int> jzqz, DeviceOS;
 extern const string version;
-
 extern bool checkLandOwnerRange_stub(IVec2, IVec2, int, unsigned long long);
 void sschTask();
 void loadCfg();

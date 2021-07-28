@@ -5,8 +5,7 @@ using namespace std;
 std::unique_ptr<KVDBImpl> db;
 string rx;
 string rxs;
-string signinlxqdlists;
-string signinnumlists;
+string signinlxqdlists, signinnumlists,pinglist;
 typedef unsigned long long eid_t;
 static eid_t HGID = 9223372036854775809ull;
 constexpr unsigned int H(string_view s)
@@ -33,7 +32,8 @@ static string api[] = {
 	"%moneylist%",
 	"%killmoblist%",
 	"%signinlxqdlist%",
-	"%signinnumlist%"
+	"%signinnumlist%",
+	"%pinglist%"
 };
 enum HGOP_LIST :int {
 	LIST = 1
@@ -161,6 +161,8 @@ struct NPC {
 				case H("%signinlxqdlist%"):
 					replace_all_distinct(namee, m, signinlxqdlists);
 					break;
+				case H("%pinglist%"):
+					replace_all_distinct(namee, m, pinglist);
 				case H("&n"):
 					replace_all_distinct(namee, m, "\n");
 					break;
@@ -373,14 +375,6 @@ bool HGCMD_CMD(CommandOrigin const& ori, CommandOutput& outp, MyEnum <HGOP_CMD>,
 	}
 }
 
-void npcc() {
-	Handler::schedule(RepeatingTask([] {
-		vector<Player*> plist = liteloader::getAllPlayers();
-		for (auto p : plist) {
-			resendAllHG(WPlayer(*(ServerPlayer*)p));
-		}
-		}, 2));
-}
 void npccs() {
 	Handler::schedule(RepeatingTask([] {
 		auto all = Money::getAllMoney();
@@ -588,7 +582,108 @@ void ssigninlxqdlist() {
 		num++;
 	}
 }
+class NetworkHandler;
+namespace ping {
+	class NetworkPeer {
+	public:
+		enum class Reliability : int {};
+		enum class DataStatus : int { OK, BUSY };
+		struct NetworkStatus {
+			int level;
+			int ping, avgping;
+			double packetloss, avgpacketloss;
+		};
 
+		virtual ~NetworkPeer();
+		virtual void sendPacket(std::string, NetworkPeer::Reliability, int) = 0;
+		virtual DataStatus receivePacket(std::string&) = 0;
+		virtual NetworkStatus getNetworkStatus() = 0;
+		MCAPI virtual void update();
+		MCAPI virtual void flush(std::function<void(void)>&&);
+	};
+	string getstrms(int ms) {
+		if (ms <= 30) {
+			return u8"§a" + to_string(ms) + "ms";
+		}
+		else if (ms <= 50) {
+			return  u8"§2" + to_string(ms) + "ms";
+		}
+		else if (ms <= 100) {
+			return u8"§g" + to_string(ms) + "ms";
+		}
+		else if (ms <= 150) {
+			return u8"§c" + to_string(ms) + "ms";
+		}
+		else {
+			return u8"§4" + to_string(ms) + "ms";
+		}
+		return u8"" + to_string(ms) + "ms";
+	}
+	string getstrloss(double loss) {
+		int ms = loss * 100;
+		if (ms = 0) {
+			return u8"§a" + to_string(ms);
+		}
+		else if (ms <= 10) {
+			return u8"§a" + to_string(ms);
+		}
+		else if (ms <= 30) {
+			return u8"§g" + to_string(ms);
+		}
+		else if (ms <= 50) {
+			return u8"§c" + to_string(ms);
+		}
+		else {
+			return u8"§4" + to_string(ms);
+		}
+		return u8"§6" +to_string(ms);
+	}
+	string getavgms(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrms(status.avgping / 2);
+	}
+	string getms(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrms(status.ping / 2);
+	}
+	string getavgpacketloss(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrloss(status.avgpacketloss);
+	}
+	string getpacketloss(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrloss(status.packetloss);
+	}
+}
+#include <map>
+std::map<string, string> pinglists;
+void getping() {
+	for (auto iter = pinglists.begin(); iter != pinglists.end(); iter++)
+	{
+		string ps = u8"§b" + iter->first + "  " + iter->second + u8"%\n";
+		pinglist += ps;
+	}
+	pinglists.clear();
+}
+void getpinglist() {
+	Handler::schedule(RepeatingTask([] {
+	pinglist = "";
+	for (auto pl : liteloader::getAllPlayers()) {
+		auto sp = MakeSP(pl);
+		string as = ping::getms(sp) + u8"§6/" + ping::getavgms(sp) + "  " + ping::getpacketloss(sp) + u8"%§6/" + ping::getavgpacketloss(sp);
+		pinglists[offPlayer::getRealName(pl)] = as;
+	}
+	getping();
+		}, 2));
+}
 THook2("玩家保存", void, "?saveLevelData@Level@@UEAAXXZ", Level* a1) {
 	killlist();
 	ssigninnumlist();
@@ -608,6 +703,14 @@ void load() {
 		});
 }
 
+void npcc() {
+	Handler::schedule(RepeatingTask([] {
+		vector<Player*> plist = liteloader::getAllPlayers();
+		for (auto p : plist) {
+			resendAllHG(WPlayer(*(ServerPlayer*)p));
+		}
+		}, 2));
+}
 
 const string version = "210610";
 int updateCheck();
@@ -650,6 +753,7 @@ void entry_npc() {
 		ssigninnumlist();
 		ssigninlxqdlist();
 		npcc();
+		getpinglist();
 		});
 }
 

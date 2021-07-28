@@ -20,18 +20,19 @@ THook(void, "?explode@RespawnAnchorBlock@@CAXAEAVPlayer@@AEBVBlockPos@@AEAVBlock
 	}
 	return original(a1,a2,a3,a4);
 }
-THook(bool, "?canDestroy@WitherBoss@@SA_NAEBVBlock@@@Z", void* blockpos){
-	if (NO_EXPLOSION) {
-		return false;
-	}
-	return original(blockpos);
+THook(bool, "?canDestroy@WitherBoss@@SA_NAEBVBlock@@@Z", void* block){
+	throw 1;
+}
+THook(void, "?_destroyBlocks@WitherBoss@@AEAAXAEAVLevel@@AEBVAABB@@AEAVBlockSource@@H@Z", void* a1, Level* a2, AABB* a3, BlockSource* a4, int a5) {
+
 }
 
-THook(bool, "?canDestroyBlock@WitherSkull@@UEBA_NAEBVBlock@@@Z", void* thi, void* blockpos){
+
+THook(bool, "?canDestroyBlock@WitherSkull@@UEBA_NAEBVBlock@@@Z", void* thi, void* block){
 if (NO_EXPLOSION) {
 	return false;
 }
-return original(thi, blockpos);
+return original(thi, block);
 }
 
 
@@ -127,4 +128,127 @@ THook(void, "?getEntities@LevelChunk@@QEBAXV?$span@V?$not_null@PEBVActor@@@gsl@@
 THook(__int64, "?_read@PurchaseReceiptPacket@@EEAA?AW4StreamReadResult@@AEAVReadOnlyBinaryStream@@@Z", char* a1, void* a2) {
 	cout << u8"发现PurchaseReceiptPacket攻击，已拦截" << endl;
 	return 0;
+}
+class NetworkHandler;
+namespace nick {
+	string dimname(int a1) {
+		switch (a1) {
+		case 0:
+			return u8"§a主世界";
+		case 1:
+			return u8"§c地狱";
+		case 2:
+			return u8"§g末地";
+		default:
+			return u8"§4神必世界";
+		}
+	}
+	string getDeviceName(int a1) {
+		switch (a1) {
+		case -1:
+			return u8"§2unkown";
+		case 1:
+			return u8"§b安卓";
+		case 2:
+			return u8"§diOS";
+		case 3:
+			return u8"§eOSX";
+		case 4:
+			return u8"§eAmazon";
+		case 5:
+			return u8"§eGearVR";
+		case 6:
+			return u8"§eHololens";
+		case 7:
+			return u8"§eWin10";
+		case 8:
+			return u8"§eWIN32";
+		case 9:
+			return u8"§eDedicated";
+		case 10:
+			return u8"§eTVOS";
+		case 11:
+			return u8"§ePlayStation";
+		case 12:
+			return u8"§eNintendo";
+		case 13:
+			return u8"§eXbox";
+		case 14:
+			return u8"§eWwindowsPhone";
+		default:
+			return u8"§2unkown";
+		}
+	}
+	string getadmin(ServerPlayer* sp) {
+		string name = offPlayer::getRealName(sp);
+		if (sp->getCommandPermissionLevel() > 0) {
+			name = u8"§4" + name;
+			return name;
+		}
+		return name;
+	}
+	class NetworkPeer {
+	public:
+		enum class Reliability : int {};
+		enum class DataStatus : int { OK, BUSY };
+		struct NetworkStatus {
+			int level;
+			int ping, avgping;
+			double packetloss, avgpacketloss;
+		};
+
+		virtual ~NetworkPeer();
+		virtual void sendPacket(std::string, NetworkPeer::Reliability, int) = 0;
+		virtual DataStatus receivePacket(std::string&) = 0;
+		virtual NetworkStatus getNetworkStatus() = 0;
+		MCAPI virtual void update();
+		MCAPI virtual void flush(std::function<void(void)>&&);
+	};
+	string getstrms(int ms) {
+		if (ms <= 30) {
+			return u8"§a" + to_string(ms) + "ms";
+		}
+		else if (ms <= 50) {
+			return  u8"§2" + to_string(ms) + "ms";
+		}
+		else if (ms <= 100) {
+			return u8"§g" + to_string(ms) + "ms";
+		}
+		else {
+			return u8"§c" + to_string(ms) + "ms";
+		}
+		return u8"" + to_string(ms) + "ms";
+	}
+	string getstrloss(double loss) {
+		int a = loss * 100;
+		return to_string(a);
+	}
+	string getms(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrms(status.avgping / 2);
+	}
+	string getpacketloss(ServerPlayer* sp) {
+		auto netid = offPlayer::getNetworkIdentifier(sp);
+		auto peer = SymCall("?getPeerForUser@NetworkHandler@@QEAAPEAVNetworkPeer@@AEBVNetworkIdentifier@@@Z", NetworkPeer*, NetworkHandler*, NetworkIdentifier*)(LocateService<Minecraft>()->getNetworkHandler(), netid);
+		auto status = peer->getNetworkStatus();
+		return	getstrloss(status.avgpacketloss);
+	}
+	void sendallplayer(ServerPlayer* sp, string msg) {
+		for (auto pl : liteloader::getAllPlayers()) {
+			auto iter = DeviceOS.find(offPlayer::getRealName(sp));
+			if (iter != DeviceOS.end()) {
+				sendText((ServerPlayer*)pl, u8"§6[" + nick::dimname(sp->getDimensionId()) + u8"§6][" +
+					nick::getDeviceName(DeviceOS[offPlayer::getRealName(sp)]) + u8"§6][延迟" + getms(sp) 
+					+ u8"§6][§3丢包率"+ getpacketloss(sp) + u8"%§6]§r" + getadmin(sp) + u8"§r>" + msg, RAW);
+			}
+		}
+	}
+}
+
+THook(void,"?_displayGameMessage@ServerNetworkHandler@@AEAAXAEBVPlayer@@AEAUChatEvent@@@Z",
+	void* snh,ServerPlayer* sp,string* msg) {
+	nick::sendallplayer(sp,*msg);
+	return;
 }

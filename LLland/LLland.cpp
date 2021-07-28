@@ -768,7 +768,8 @@ bool oncmd_landop(CommandOrigin const& ori, CommandOutput& outp, MyEnum<LANDm> o
 			if (k.size() == 4) {
 				FastLand* fl = (FastLand*)v.data();
 				transform(target.val().begin(), target.val().end(), target.val().begin(),::tolower);
-				if (target.set && target.val().c_str() == fl->ownStr()) {
+				auto position = fl->ownStr().find(target.val());
+				if (target.set && position != fl->ownStr().npos) {
 					if (k.size() == 4) {
 						outp.addMessage(u8"l领地id： " + S(fl->lid) + u8" 权限：" + S(fl->perm_group) + " : " + S(fl->perm_others));
 						outp.addMessage(u8"坐标： (" + S(int(to_lpos(fl->x))) + " " + S(int(to_lpos(fl->z))) + ") -> (" + S(int(to_lpos(fl->dx))) + " " + S(int(to_lpos(fl->dz))) + u8") 维度： " + S(fl->dim));
@@ -826,8 +827,14 @@ void entry() {
 		});
 
 }
-THook(void*, "?attack@ItemFrameBlock@@UEBA_NPEAVPlayer@@AEBVBlockPos@@@Z", void* a, void* b, void* c) {
-	return nullptr;
+THook(void*, "?attack@ItemFrameBlock@@UEBA_NPEAVPlayer@@AEBVBlockPos@@@Z", void* a, Player *a2 , BlockPos* c) {
+	auto wp = WPlayer(*(ServerPlayer*)a2);
+	auto fl = genericPerm(c->x, c->z, wp, LandPerm::PERM_DESTROY);
+	if (fl) {
+		NoticePerm(wp, fl, "destroy");
+		return nullptr;
+	}
+	return original(a,a2,c);
 }
 THook(void*, "?transformOnFall@FarmBlock@@UEBAXAEAVBlockSource@@AEBVBlockPos@@PEAVActor@@M@Z", void* t, class BlockSource& x, class BlockPos const& y, class Actor* z, float p) {
 	return nullptr;

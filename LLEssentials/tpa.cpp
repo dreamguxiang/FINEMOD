@@ -145,6 +145,7 @@ bool DoCloseReq(decltype(reqs.begin()) rq, TPCloseReason res) {
 	else {
 		//no such player
 	}
+	return true;
 }
 void DoMakeReq(WPlayer _a, WPlayer _b, direction dir) {
 	auto a = offPlayer::getRealName(_a);

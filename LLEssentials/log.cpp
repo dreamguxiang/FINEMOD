@@ -26,6 +26,8 @@ THook(void*, "?_onPlayerLeft@ServerNetworkHandler@@AEAAXPEAVServerPlayer@@_N@Z",
 	{
 		mcc.erase(key);
 	}
+	auto iter = DeviceOS.find(offPlayer::getRealName(a2));
+	if (iter != DeviceOS.end())iter = DeviceOS.erase(iter);
 	auto playerPos = a2->getPos();
 	auto px = (int)playerPos.x;
 	auto py = (int)playerPos.y;
