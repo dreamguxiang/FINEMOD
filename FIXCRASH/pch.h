@@ -9,21 +9,4 @@
 
 // 添加要在此处预编译的标头
 #include<lbpch.h>
-#include<api\regCommandHelper.h>
-#include<api/basicEvent.h>
-#include<api\myPacket.h>
-#include<stl\varint.h>
-#include<stl\viewhelper.h>
-#include<stl\KVDB.h>
-#include<stl\static_queue.h>
-#include<filesystem>
-#include <api\scheduler\scheduler.h>
-#include <map>
-#include <io.h>
-#include<fstream>
-#include<sstream>
-#include"LiteLuaLoader.h"
-#include<mc/Player.h>
-#include<mc/OffsetHelper.h>
-#include<luafly.h>
 #endif //PCH_H

@@ -141,7 +141,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;TPS_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;HologramGlows_EXPORTS;_WINDOWS;_USRDLL;_CRT_SECURE_NO_WARNINGS;_HAS_STD_BYTE=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -178,6 +178,7 @@
     <Library Include="..\lib\libcrypto.lib" />
     <Library Include="..\lib\libssl.lib" />
     <Library Include="..\lib\LiteLoader.lib" />
+    <Library Include="..\lib\LLEssentials.lib" />
     <Library Include="..\lib\LLHunter.lib" />
     <Library Include="..\lib\LLMoney.lib" />
   </ItemGroup>

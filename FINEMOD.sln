@@ -49,7 +49,9 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FIXCRASH", "FIXCRASH\FIXCRA
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ChatBubble", "ChatBubble\ChatBubble.vcxproj", "{5F482754-4BD2-4405-8256-5C321EA1DB38}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "eztest", "eztest\eztest.vcxproj", "{D79FC2F4-A2C3-4225-B78F-DA661A0EF304}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "FallingDespawn", "eztest\eztest.vcxproj", "{D79FC2F4-A2C3-4225-B78F-DA661A0EF304}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ForceGameTest", "ForceGameTest\ForceGameTest.vcxproj", "{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -250,6 +252,14 @@ Global
 		{D79FC2F4-A2C3-4225-B78F-DA661A0EF304}.Release|x64.Build.0 = Release|x64
 		{D79FC2F4-A2C3-4225-B78F-DA661A0EF304}.Release|x86.ActiveCfg = Release|Win32
 		{D79FC2F4-A2C3-4225-B78F-DA661A0EF304}.Release|x86.Build.0 = Release|Win32
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Debug|x64.ActiveCfg = Debug|x64
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Debug|x64.Build.0 = Debug|x64
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Debug|x86.ActiveCfg = Debug|Win32
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Debug|x86.Build.0 = Debug|Win32
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Release|x64.ActiveCfg = Release|x64
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Release|x64.Build.0 = Release|x64
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Release|x86.ActiveCfg = Release|Win32
+		{74C986BC-FF82-4B28-BCBD-65388E3DE3DA}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -285,8 +285,8 @@ class ItemStackBase {
         return (this->*rv)(a0);
     }
 #endif
-    MCINLINE class Item const *getItem() const {
-        class Item const *(ItemStackBase::*rv)() const;
+    MCINLINE class Item  *getItem()  {
+        class Item  *(ItemStackBase::*rv)() ;
         *((void **)&rv) = dlsym("?getItem@ItemStackBase@@QEBAPEBVItem@@XZ");
         return (this->*rv)();
     }

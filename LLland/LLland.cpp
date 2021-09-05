@@ -5,6 +5,7 @@
 #include "LLland.h"
 #include "shared.h"
 #include <map>
+#include <api/gui/gui.h>
 using namespace std;
 void Version() {
 	cout << "[LLland] version 210323" << endl;
@@ -362,7 +363,8 @@ enum class LANDPOP :int {
 	A = 1,
 	B = 2,
 	exit = 3,
-	gui = 4
+	gui = 4,
+	tp = 5
 };
 enum class LANDm :int {
 	all = 1,
@@ -390,8 +392,9 @@ static bool oncmd(CommandOrigin const& ori, CommandOutput& outp, MyEnum<LANDPOP>
 	}
 					  break;
 	case LANDPOP::gui: {
+
 	}
-					  break;
+		break;
 	default:
 		break;
 	}
@@ -499,6 +502,7 @@ static bool oncmd_2(CommandOrigin const& ori, CommandOutput& outp, MyEnum<LANDOP
 			outp.addMessage(u8"§l§6[§eMCBE §bFINE§6]§r 领地信息");
 			outp.addMessage(u8"领地id： " + S(fl->lid));
 			outp.addMessage(u8"拥有者： " + fl->ownStr());
+			outp.addMessage(u8"坐标： (" + S(int(to_lpos(fl->x))) + " " + S(int(to_lpos(fl->z))) + ") -> (" + S(int(to_lpos(fl->dx))) + " " + S(int(to_lpos(fl->dz))) + u8") 维度： " + S(fl->dim));
 			outp.addMessage(u8"信任者权限： " + S((u16)fl->perm_group)); //TODO:human readable perm
 			outp.addMessage(u8"游客权限： " + S((u16)fl->perm_others));
 			return true;
@@ -1382,7 +1386,16 @@ THook(bool, "?use@Block@@QEBA_NAEAVPlayer@@AEBVBlockPos@@E@Z",
 	}
 	return original(a1, a2, a3, a4);
 }
-
+THook(bool, "?canOpenContainerScreen@Player@@UEAA_NXZ", Player* a2) {
+	auto wp = WPlayer(*(ServerPlayer*)a2);
+	auto pos = a2->getPos();
+	auto fl = genericPerm(pos.x, pos.z, wp, LandPerm::PERM_USE);
+	if (fl) {
+		NoticePerm(wp, fl, "use");
+		return false;
+	}
+	return original( a2);
+}
 THook(bool,
 	"?useItemOn@GameMode@@UEAA_NAEAVItemStack@@AEBVBlockPos@@EAEBVVec3@@PEBVBlock@@@Z",
 	void* thi, ItemStack* a2, BlockPos a3, unsigned __int8 a4, void* v5, Block* pBlk) {

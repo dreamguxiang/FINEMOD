@@ -1,11 +1,13 @@
 ﻿#include"pch.h"
 #include"api.h"
 #include "llmoney.h"
+#include <functional>
 using namespace std;
 std::unique_ptr<KVDBImpl> db;
 string rx;
 string rxs;
-string signinlxqdlists, signinnumlists,pinglist;
+string signinlxqdlists, signinnumlists,pinglist,serverip,playerserverip;
+unordered_map<string, string> Modules;
 typedef unsigned long long eid_t;
 static eid_t HGID = 9223372036854775809ull;
 constexpr unsigned int H(string_view s)
@@ -18,23 +20,7 @@ constexpr unsigned int H(string_view s)
 	hash &= ~(1 << 31); /* strip the highest bit */
 	return hash;
 }
-static string api[] = {
-	"%time%",
-	"%llmoney%",
-	"%playername%" ,
-	"%serverversion%",
-	"%serverprotocolversion%",
-	"%playerpermlevel%",
-	"%diskdrivetype%",
-	"%cputype%",
-	"&n",
-	"%ostype%",
-	"%moneylist%",
-	"%killmoblist%",
-	"%signinlxqdlist%",
-	"%signinnumlist%",
-	"%pinglist%"
-};
+
 enum HGOP_LIST :int {
 	LIST = 1
 };
@@ -88,7 +74,7 @@ struct NPC {
 #define SBIT(x) (1ull<<x)
 	unsigned long long flag = SBIT(14) | SBIT(15);
 	void pack(WBStream& bs)const {
-		bs.apply(name, nametag, type, pos, rot, eid, data,size);
+		bs.apply(name, nametag, type, pos, rot, eid, data, size);
 	}
 	static unsigned long long getFLAGS(string_view val) {
 		split_view spv(val);
@@ -100,7 +86,7 @@ struct NPC {
 		return rv;
 	}
 	void unpack(RBStream& bs) {
-		bs.apply(name, nametag, type, pos, rot, eid, data,size);
+		bs.apply(name, nametag, type, pos, rot, eid, data, size);
 		type = MINECRAFT_ENTITY_TYPE(type);
 		string val;
 		if (db->get(string("hgdata_") + name, val)) {
@@ -116,10 +102,14 @@ struct NPC {
 			dim = 0;
 		}
 	}
-	void NetAdd(WBStream& bs,WPlayer& wp)const {
+	void NetAdd(WBStream& bs, WPlayer& wp)const {
 		auto namee = nametag;
 		auto sp = MakeSP(wp);
 		string val;
+		for (auto& [key, val] : Modules) {
+			replace_all_distinct(namee, key, val);
+		}
+		/*
 		for (auto& m : api) {
 			switch (H(m)){
 				case H("%time%"):
@@ -163,13 +153,18 @@ struct NPC {
 					break;
 				case H("%pinglist%"):
 					replace_all_distinct(namee, m, pinglist);
+				case H("%playerserveriplist%"):
+					replace_all_distinct(namee, m, playerserverip);
+				case H("%serveriplist%"):
+					replace_all_distinct(namee, m, serverip);
 				case H("&n"):
 					replace_all_distinct(namee, m, "\n");
 					break;
 				default:
 					return;
 				}
-		}
+
+		}*/
 		bs.apply(VarULong(eid), VarULong(eid), MCString("minecraft:pig"), pos, Vec3{ 0,0,0 }
 			, rot, //rotation
 			VarUInt(0), //attr
@@ -254,7 +249,7 @@ void resendAllHG(WPlayer wp) {
 	}
 }
 
-
+/*
 bool HGCMD_ADD(CommandOrigin const& ori, CommandOutput& outp, MyEnum<HGOP_ADD>, string& name, string& tag, optional<float>& px, optional<float>& py, optional<float>& pz) {
 	auto wp = MakeWP(ori).val();
 	NPC npc;
@@ -296,7 +291,7 @@ bool HGCMD_ADD(CommandOrigin const& ori, CommandOutput& outp, MyEnum<HGOP_ADD>, 
 	outp.addMessage(u8"§l§6[§eHologramGlows§6]§r added success\nNAMEID: "+ name +" \nX:" + std::to_string(npc.pos.x) + " \nY:" + std::to_string(npc.pos.y)+" \nZ:"+std::to_string(npc.pos.z));
 	return true;
 }
-
+*/
 bool HGCMD_REMOVE(CommandOrigin const& ori, CommandOutput& outp, MyEnum<HGOP_REMOVE>, string& name) {
 	for (auto it = npcs.begin(); it != npcs.end(); ++it) {
 		if (it->second.name == name) {
@@ -684,6 +679,27 @@ void getpinglist() {
 	getping();
 		}, 2));
 }
+#include <lless.h>
+void getiplist() {
+	Handler::schedule(RepeatingTask([] {
+		auto a = getServerIPlist();
+		serverip = "";
+		for (auto iter = a.begin(); iter != a.end(); iter++) {
+			serverip += iter->first + "    " + to_string(iter->second) + "\n";
+		}
+		}, 2));
+}
+
+void getiplists() {
+	Handler::schedule(RepeatingTask([] {
+		auto a = getServerIPPlayerList();
+		playerserverip = "";
+		for (auto iter = a.begin(); iter != a.end(); iter++) {
+			playerserverip += iter->first + "   " + iter->second + "\n";
+		}
+		}, 2));
+}
+
 THook2("玩家保存", void, "?saveLevelData@Level@@UEAAXXZ", Level* a1) {
 	killlist();
 	ssigninnumlist();
@@ -715,7 +731,8 @@ void npcc() {
 const string version = "210610";
 int updateCheck();
 #include "api.h"
-
+#include <HologramGlows.h>
+#include <rapidjson/document.h>
 void entry_npc() {
 	std::cout << " _    _       _                                  _____ _                   " << endl
 		<< "| |  | |     | |                                / ____| |                  " << endl
@@ -741,12 +758,14 @@ void entry_npc() {
 		CEnum<HGOP_ADD> _2("hg_add", { "add" });
 		CEnum<HGOP_LIST> _3("hg_list", { "list" });
 		CEnum<HGOP_REMOVE> _4("hg_remove", { "remove" });
-		CmdOverload(hg, HGCMD_ADD, "add", "id", "tag","x","y","z");
+		//CmdOverload(hg, HGCMD_ADD, "add", "id", "tag","x","y","z");
 		CmdOverload(hg, HGCMD_LIST, "list", "name");
 		CmdOverload(hg, HGCMD_REMOVE, "remove", "name");
 		CmdOverload(hg, HGCMD_CMD, "cmd", "name", "data");
 		});
 	Event::addEventListener([](ServerStartedEV) {
+		regHG("&n","\n");
+		regHG("%time%", gettime());
 		updateCheck();
 		npccs();
 		killlist();
@@ -754,6 +773,8 @@ void entry_npc() {
 		ssigninlxqdlist();
 		npcc();
 		getpinglist();
+		getiplist();
+		getiplists();
 		});
 }
 
@@ -781,4 +802,96 @@ class ChangeDimensionRequest;
 THook(bool, "?_playerChangeDimension@Level@@AEAA_NPEAVPlayer@@AEAVChangeDimensionRequest@@@Z", Level* _this, Player* _this_sp, ChangeDimensionRequest* cdimreq) {
 	resendAllHG(WPlayer(*(ServerPlayer*)_this_sp));
 	return  original(_this, _this_sp, cdimreq);
+}
+
+
+HG_API void registerHGModule(string x,string z) {
+	Modules[x] = z;
+}
+
+#include "rapidjson/rapidjson.h"
+#include "rapidjson/document.h"
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/writer.h>
+#include <rapidjson/stream.h>
+#include <rapidjson/filereadstream.h>
+#include <rapidjson/FileWriteStream.h>
+using namespace rapidjson;
+string createJson()
+{
+	//常规操作
+	Document doc;			//生成DOM元素
+	doc.SetObject();
+	Document::AllocatorType& allocator = doc.GetAllocator();	//生成一个分配器
+
+	//构建键值对
+	doc.AddMember("name", "jack", allocator);				//键 值 分配器
+	doc.AddMember("age", 18, allocator);
+
+	//"sub"
+	//构建数组 类型为：["1","2"]
+	Value array_sub(kArrayType);						//创建一个数组类型对象
+	array_sub.PushBack("a", allocator);
+	array_sub.PushBack("b", allocator);
+
+	doc.AddMember("sub", array_sub, allocator);		//将数组分配给sub字段
+	//构建数组 类型为：[{"a":"A","b","B"},{"c":"C"}]	一个数组且里面每个元素又是一个json
+
+	//"elp"
+	Value array_json(kArrayType);		//一维数组
+
+	Value array_obj1(kObjectType);		//每个数组里又是一个json格式 二级json
+	array_obj1.AddMember("a", "A", allocator);
+	array_obj1.AddMember("b", "B", allocator);
+	array_json.PushBack(array_obj1, allocator);
+
+	Value array_obj2(kObjectType);		// 二级json
+	array_obj2.AddMember("c", "C", allocator);
+	array_obj2.AddMember("d", "D", allocator);
+	array_json.PushBack(array_obj2, allocator);
+	doc.AddMember("elp", array_json, allocator);
+
+	StringBuffer s;
+	Writer<StringBuffer> writer(s);
+	doc.Accept(writer);
+
+	return std::string(s.GetString());
+}
+
+//读取json文件
+void  ReadJson()
+{
+	FILE* fp = fopen("..//test.json", "rb");
+	char readBuffer[65536];
+	FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+	Document d;
+	d.ParseStream(is);
+	fclose(fp);
+
+	printf("%s", readBuffer);
+}
+
+void writeFiles(string str)			//写入json文件
+{
+	Document docu;
+	string writeJson = str;
+	docu.Parse(writeJson.c_str());
+	FILE* fp = fopen("..//test.json", "wb");
+	char writeBuffer[65535];
+	rapidjson::FileWriteStream os(fp, writeBuffer, sizeof(writeBuffer));
+
+	PrettyWriter<FileWriteStream> writer(os);
+	docu.Accept(writer);
+	fclose(fp);
+}
+
+int main()
+{
+	string result = createJson();
+	writeFiles(result);	//写入json文件
+
+	cout << "读取json文件：" << endl;
+	ReadJson();
+
+	return 0;
 }

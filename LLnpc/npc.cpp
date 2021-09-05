@@ -89,7 +89,7 @@ struct NPC {
 				case Entity.DATA_TYPE_INT:
 					stream.putVarInt(((IntEntityData) d).getData());
 
-						public static final int DATA_TYPE_BYTE = 0;
+	public static final int DATA_TYPE_BYTE = 0;
 	public static final int DATA_TYPE_SHORT = 1;
 	public static final int DATA_TYPE_INT = 2;
 	public static final int DATA_TYPE_FLOAT = 3;

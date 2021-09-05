@@ -5,7 +5,7 @@
 short ticks;
 map<string, short > mcc;
 std::map < string, short > ::reverse_iterator iter;
-
+/*
 THook(unsigned int, "?executeCommand@MinecraftCommands@@QEBA?AUMCRESULT@@V?$shared_ptr@VCommandContext@@@std@@_N@Z",
 	MinecraftCommands* self, __int64 a2, std::shared_ptr<CommandContext> cmd, char a4) {
 	auto ptr = cmd.get();
@@ -16,7 +16,22 @@ THook(unsigned int, "?executeCommand@MinecraftCommands@@QEBA?AUMCRESULT@@V?$shar
 	}
 	return original(self, a2, cmd, a4);
 }
-
+*/
+THook(void, "?handle@ServerNetworkHandler@@UEAAXAEBVNetworkIdentifier@@AEBVCommandRequestPacket@@@Z",
+	void* self, NetworkIdentifier* id, void* pkt) {
+	auto sp = SymCall("?_getServerPlayer@ServerNetworkHandler@@AEAAPEAVServerPlayer@@AEBVNetworkIdentifier@@E@Z",
+		Player*, void*, void*, char)(self, id, *(char*)((uintptr_t)pkt + 16));
+	if (sp) {
+		string cmd = dAccess<string, 48>(pkt);
+		LOG1 << "[" << gettime() << u8" INFO][BH] " << offPlayer::getRealName(sp) << " CMD " << cmd << endl;
+		if (cmd.find("hsa find") != cmd.npos) {
+			WPlayer wp = WPlayer{ *sp };
+			wp.sendText("§l§6[§eMCBE §bFINE§6]§r 指令已被禁用!");
+			return;
+		}
+		original(self, id, pkt);
+	}
+}
 THook(void*, "?_onPlayerLeft@ServerNetworkHandler@@AEAAXPEAVServerPlayer@@_N@Z",
 	void* _this, ServerPlayer* a2, bool a3) {
 	auto a = original(_this, a2, a3);
@@ -28,6 +43,10 @@ THook(void*, "?_onPlayerLeft@ServerNetworkHandler@@AEAAXPEAVServerPlayer@@_N@Z",
 	}
 	auto iter = DeviceOS.find(offPlayer::getRealName(a2));
 	if (iter != DeviceOS.end())iter = DeviceOS.erase(iter);
+
+	auto iterss = ServerAddress.find(offPlayer::getRealName(a2));
+	if (iterss != ServerAddress.end())iterss = ServerAddress.erase(iterss);
+
 	auto playerPos = a2->getPos();
 	auto px = (int)playerPos.x;
 	auto py = (int)playerPos.y;

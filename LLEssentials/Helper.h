@@ -6,13 +6,14 @@
 
 using namespace std;
 extern unordered_map<string, string> CMDMAP, CMDSCHEDULE;
+extern map<string, string>ServerAddress;
 extern int FAKE_SEED, MAX_CHAT_LEN, MAXONLINEPLAYER, FAKE_ONLINEPLAYER, TPRNUM;
 extern unordered_set<short> logItems, banItems;
 extern bool LOG_CMD, LOG_CHAT, regABILITY, nocheatcmd,Force_ResourcePacks, NO_EXPLOSION, EXP_PLAY, penderman, pfarm, fakeonlineplayer, ENABLETPR,ENABLERUNAS,ENABLETPS,DynamicPlayer, ENABLEBAN, ENABLESKICK, ENABLEVANISH, ENABLECNAME, ENABLETRANSFER, ENABLEGMODE, ENABLELORE;
 extern Minecraft* mc;
 extern Logger1 LOG1;
 extern playerMap<string> ORIG_NAME;
-extern unordered_map<string, string> CNAME;
+extern unordered_map<string, string> CNAME, chxtdb;
 extern unordered_map<string, int> jzqz, DeviceOS;
 extern const string version;
 extern bool checkLandOwnerRange_stub(IVec2, IVec2, int, unsigned long long);

@@ -180,12 +180,10 @@ namespace nick {
 		}
 	}
 	string getadmin(ServerPlayer* sp) {
-		string name = offPlayer::getRealName(sp);
 		if (sp->getCommandPermissionLevel() > 0) {
-			name = u8"§4" + name;
-			return name;
+			return u8"§4管理员";
 		}
-		return name;
+		return u8"§e玩家";
 	}
 	class NetworkPeer {
 	public:
@@ -235,13 +233,31 @@ namespace nick {
 		auto status = peer->getNetworkStatus();
 		return	getstrloss(status.avgpacketloss);
 	}
+	string getchxt(ServerPlayer* pl,string name) {
+		for (auto itergx = chxtdb.begin(); itergx != chxtdb.end(); itergx++) {
+			if (name == itergx->first) {
+				return itergx->second;
+			}
+		}
+		return getadmin(pl);
+	}
+	string getcname(string name) {
+		for (auto iteras = CNAME.begin(); iteras != CNAME.end(); iteras++) {
+			if (name == iteras->first) {
+				return iteras->second;
+			}
+		}
+		return name;
+	}
 	void sendallplayer(ServerPlayer* sp, string msg) {
 		for (auto pl : liteloader::getAllPlayers()) {
 			auto iter = DeviceOS.find(offPlayer::getRealName(sp));
 			if (iter != DeviceOS.end()) {
+				string name = offPlayer::getRealName(sp);
+				auto chs = getchxt(sp,name);
+				auto cname = getcname(name);
 				sendText((ServerPlayer*)pl, u8"§6[" + nick::dimname(sp->getDimensionId()) + u8"§6][" +
-					nick::getDeviceName(DeviceOS[offPlayer::getRealName(sp)]) + u8"§6][延迟" + getms(sp) 
-					+ u8"§6][§3丢包率"+ getpacketloss(sp) + u8"%§6]§r" + getadmin(sp) + u8"§r>" + msg, RAW);
+					nick::getDeviceName(DeviceOS[offPlayer::getRealName(sp)]) + u8"§6][" + getms(sp)+ u8"§6][§r" + chs + u8"§6]§r" + cname + u8"§r>" + msg, RAW);
 			}
 		}
 	}
@@ -252,3 +268,34 @@ THook(void,"?_displayGameMessage@ServerNetworkHandler@@AEAAXAEBVPlayer@@AEAUChat
 	nick::sendallplayer(sp,*msg);
 	return;
 }
+
+THook(bool, "?_couldHang@LanternBlock@@AEBA_NAEAVBlockSource@@AEBVBlockPos@@@Z", void* a1, BlockSource* a2, BlockPos* a3) {
+	return 1;
+}
+THook(bool, "?canSurvive@LanternBlock@@UEBA_NAEAVBlockSource@@AEBVBlockPos@@@Z", void* a1, BlockSource* a2, BlockPos* a3) {
+	return 1;
+}
+
+THook(bool, "?hasValidAttachment@BellBlock@@QEBA_NAEBVBlock@@AEAVBlockSource@@AEBVBlockPos@@@Z", void* a1, const struct Block* a2, struct BlockSource* a3, const struct BlockPos* a4) {
+	return 1;
+}
+THook(bool, "?canAttachTo@ButtonBlock@@SA_NAEAVBlockSource@@AEBVBlockPos@@E@Z", struct BlockSource* a1, const struct BlockPos* a2, unsigned __int8 a3) {
+	return 1;
+}
+
+THook(bool, "?canPushInItem@BrewingStandBlockActor@@UEBA_NAEAVBlockSource@@HHAEBVItemInstance@@@Z", void* a1, struct BlockSource* a2, int a3, int a4, const struct ItemInstance* a5) {
+	return 1;
+}
+
+
+/*
+THook(bool, "?shouldDespawn@Item@@QEBA_NXZ", Item* a1) {
+	cout << (*((char*)a1 + 290) >> 6) << endl;
+	return 0;
+}
+
+THook(Item*, "?setShouldDespawn@Item@@UEAAAEAV1@_N@Z", Item* a1, bool a2) {
+	*((char*)a1 + 290) = 0;
+	cout << *((char*)a1 + 290) << endl;
+	return a1;
+}*/

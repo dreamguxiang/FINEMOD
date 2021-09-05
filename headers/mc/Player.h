@@ -1227,8 +1227,8 @@ class Player : public Mob {
         *((void **)&rv) = dlsym("?addExperience@Player@@UEAAXH@Z");
         return (this->*rv)(a0);
     }
-    MCINLINE class ItemStack const &getSelectedItem() const {
-        class ItemStack const &(Player::*rv)() const;
+    MCINLINE class ItemStack  &getSelectedItem()  {
+        class ItemStack  &(Player::*rv)() ;
         *((void **)&rv) = dlsym("?getSelectedItem@Player@@QEBAAEBVItemStack@@XZ");
         return (this->*rv)();
     }

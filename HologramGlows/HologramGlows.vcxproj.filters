@@ -55,7 +55,14 @@
     <Library Include="..\lib\LLMoney.lib">
       <Filter>资源文件</Filter>
     </Library>
-    <Library Include="..\lib\FineSignIn.lib" />
-    <Library Include="..\lib\LLHunter.lib" />
+    <Library Include="..\lib\FineSignIn.lib">
+      <Filter>资源文件</Filter>
+    </Library>
+    <Library Include="..\lib\LLHunter.lib">
+      <Filter>资源文件</Filter>
+    </Library>
+    <Library Include="..\lib\LLEssentials.lib">
+      <Filter>资源文件</Filter>
+    </Library>
   </ItemGroup>
 </Project>

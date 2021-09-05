@@ -115,11 +115,10 @@ bool DoCloseReq(decltype(reqs.begin()) rq, TPCloseReason res) {
 			break;
 		}
 	}
-	if (fplA && fplB) {
-		optional<WPlayer> A = WPlayer(*(ServerPlayer*)fplA);
-		optional<WPlayer> B = WPlayer(*(ServerPlayer*)fplB);
-		if (res == TPCloseReason::cancel) {
-			reqs.erase(rq);
+	optional<WPlayer> A = WPlayer(*(ServerPlayer*)fplA);
+	optional<WPlayer> B = WPlayer(*(ServerPlayer*)fplB);
+	if (res == TPCloseReason::cancel) {
+		reqs.erase(rq);
 			return true;
 		}
 		if (res == TPCloseReason::accept) {
@@ -127,7 +126,7 @@ bool DoCloseReq(decltype(reqs.begin()) rq, TPCloseReason res) {
 				Vec4 AP{ (rq->dir == A_B ? B : A).value() };
 				AP.teleport((rq->dir == A_B ? A : B).value());
 				reqs.erase(rq);
-				A.value().sendText(u8"§l§6[§eMCBE §bFINE§6]§r "+_TRS("tpa.reason.accept"));
+				A.value().sendText(u8"§l§6[§eMCBE §bFINE§6]§r " + _TRS("tpa.reason.accept"));
 				return true;
 			}
 			reqs.erase(rq);
@@ -140,11 +139,6 @@ bool DoCloseReq(decltype(reqs.begin()) rq, TPCloseReason res) {
 			B.value().sendText(u8"§l§6[§eMCBE §bFINE§6]§r " + (res == TPCloseReason::deny ? _TRS("tpa.reason.deny") : _TRS("tpa.reason.timeout")));
 		}
 		reqs.erase(rq);
-		return true;
-	}
-	else {
-		//no such player
-	}
 	return true;
 }
 void DoMakeReq(WPlayer _a, WPlayer _b, direction dir) {
@@ -435,8 +429,8 @@ bool generic_home(CommandOrigin const& ori, CommandOutput& outp, Homes& hm, MyEn
 	return true;
 }
 static string api[] = {
-	"add&del home",
-	"back home"
+	u8"添加或者删除家",
+	u8"回家"
 
 };
 

@@ -13,11 +13,15 @@
 #include <api\scheduler\scheduler.h>
 #include <cstdarg>
 #include <mutex>
-
+#include <lless.h>
+unordered_map<string, int> DeviceOS;
+map<string, string> ServerAddress;
 using namespace std;
 unique_ptr<KVDBImpl> dbcname;
+unique_ptr<KVDBImpl> chdb;
 playerMap<string> ORIG_NAME;
-unordered_map<string, string> CNAME;
+unordered_map<string, string> CNAME,chxtdb;
+
 string  ss = "";
 static LangPack LangP("plugins/LLEssentials/langpack/zh_cn.json");
 std::vector<std::string>& split(const std::string& s, char delim, std::vector<std::string>& elems) {
@@ -33,6 +37,14 @@ void loadCNAME() {
 	dbcname->iter([](string_view k, string_view v) {
 		if (!k._Starts_with("b_"))
 			CNAME.emplace(k, v);
+		return true;
+		});
+}
+
+void loadchxtdb() {
+	chdb = MakeKVDB(GetDataPath("chdb"), false);
+	chdb->iter([](string_view k, string_view v) {
+		chxtdb.emplace(k, v);
 		return true;
 		});
 }
@@ -356,7 +368,7 @@ bool onCMD_TPR(CommandOrigin const& ori, CommandOutput& outp) {
 	auto playername = sp->getNameTag();
 	for (itera = mcmc.rbegin(); itera != mcmc.rend(); itera++)
 		if (itera->first == playername) {
-			if (ab - mcmc[playername] <= (long)1800000) {
+			if (ab - mcmc[playername] <= (long)900000) {
 				sendText(sp, u8"§l§6[§eMCBE §bFINE§6]§r " + _TRS("tpr.fail.rate"), RAW);
 				return false;
 			}
@@ -454,6 +466,178 @@ bool oncmd_jzqz(CommandOrigin const& ori, CommandOutput& outp, MyEnum<JQZQOP> op
 		}
 	}
 	return false;
+}
+constexpr unsigned int H(string_view s)
+{
+	auto str = s.data();
+	unsigned int hash = 5381;
+	while (*str) {
+		hash = ((hash << 5) + hash) + (*str++); /* times 33 */
+	}
+	hash &= ~(1 << 31); /* strip the highest bit */
+	return hash;
+}
+
+LLESS_API map<string, int> getServerIPlist() {
+	map<string, int> word_count;
+	for (auto iter = ServerAddress.begin(); iter != ServerAddress.end(); iter++)
+	{
+		++word_count[iter->second];
+	}
+	return word_count;
+}
+
+LLESS_API map<string, string> getServerIPPlayerList() {
+	return ServerAddress;
+}
+
+bool oncmd_serveriplist(CommandOrigin const& ori, CommandOutput& outp) {
+	auto a = getServerIPlist();
+	string b = "";
+	for (auto iter = a.begin(); iter != a.end(); iter++) {
+		b += u8"ServerIP:" + iter->first + " Num:" + to_string(iter->second)+"\n";
+	}
+	outp.addMessage(b);
+}
+bool oncmd_serveripplayerlist(CommandOrigin const& ori, CommandOutput& outp) {
+	auto a = getServerIPPlayerList();
+	string b = "";
+	for (auto iter = a.begin(); iter != a.end(); iter++) {
+		b += u8"Name:" + iter->first + " ServerIP:" + iter->second + "\n";
+	}
+	outp.addMessage(b);
+}
+
+static string api[] = {
+	u8"设置称号",
+	u8"删除称号"
+
+};
+string getys(string ys) {
+	if (ys == u8"§0黑色")		return u8"§0";
+	if(ys== u8"§1深蓝")		return u8"§1";
+	if(ys == u8"§2墨绿") return u8"§2";
+	if (ys == u8"§3青色") return u8"§3";
+	if (ys == u8"§5深紫") return u8"§5";
+	if (ys == u8"§6金黄") return u8"§6";
+	if (ys == u8"§7浅灰") return u8"§7";
+	if (ys == u8"§8深灰") return u8"§8";
+	if (ys == u8"§9淡蓝") return u8"§9";
+	if (ys == u8"§a亮绿") return u8"§a";
+	if (ys == u8"§b天蓝") return u8"§b";
+	if (ys == u8"§d亮粉红") return u8"§d";
+	if (ys == u8"§e金色") return u8"§e";
+	if (ys == u8"§f白色") return u8"§f";
+	if (ys == u8"§g土豪金") return u8"§g";
+	return u8"§r";
+}
+
+bool oncmd_chxt(CommandOrigin const& ori, CommandOutput& outp) {
+	auto pl = MakeSP(ori);
+	auto wp = MakeWP(ori).val();
+	using namespace GUI;
+	auto mainhomegui = make_shared<SimpleForm>();
+	mainhomegui->title = u8"称号系统";
+	mainhomegui->content = u8"HI " + pl->getNameTag();
+	mainhomegui->reset();
+	for (auto& i : api) {
+		mainhomegui->addButton(GUIButton(string(i)));
+	}
+	sendForm(wp, SimpleFormBinder(mainhomegui, [&](WPlayer wp, SimpleFormBinder::DType d1) {
+		if (d1.set) {
+			if (d1.val().first == 0) {
+				auto fm = std::make_shared<FullForm>();
+				fm->title = u8"请设置你的称号(10000猫粮)";
+				fm->addWidget({ GUILabel("HI " + wp->getNameTag()) });
+				fm->addWidget({ GUIDropdown(u8"什么颜色",{u8"§0黑色",u8"§1深蓝",u8"§2墨绿",u8"§3青色",u8"§5深紫",u8"§6金黄",u8"§7浅灰",u8"§8深灰",u8"§9淡蓝",u8"§a亮绿",u8"§b天蓝",u8"§d亮粉红",u8"§e金色",u8"§f白色",u8"§g土豪金"}) });
+				fm->addWidget({ GUIInput(u8"称号内容(暂不开放自定义颜色，请不要输入§，后果自负！！)") });
+				sendForm(wp, FullFormBinder{ fm,{[&](WPlayer P, FullFormBinder::DType data) {
+					if (!data.set) return;
+						auto& [d1,d2] = data.val();
+						if (std::get<string>(d1[2]).size() > 18) {
+							P.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 你的称号过长，设置失败！");
+							return;
+						}
+						auto ys = getys(d2[0]);
+						string str = std::get<string>(d1[2]);
+						if (str.find(u8"§") != str.npos) {
+							P.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 暂不支持§");
+							return;
+						}
+						if (Money::getMoney(offPlayer::getXUID(P)) <= 10000) {
+							P.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 你没有足够的猫粮！");
+							return;
+						}
+						string ps = ys + str;
+						liteloader::runcmdEx("plt set \"" + offPlayer::getRealName(P) + "\" " + ps);
+						P.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 设置成功!共花费10000猫粮!你设置的称号-" + ps);
+				}} });
+			}
+			if (d1.val().first == 1) {
+				auto fms = std::make_shared<SimpleForm>();
+				fms->title = u8"请设置你的称号";
+				fms->content = "HI " + wp->getNameTag();
+				fms->addButton(GUIButton(u8"确认删除"));
+				sendForm(wp, SimpleFormBinder(fms, [&](WPlayer wp, SimpleFormBinder::DType d2) {
+					if (d2.val().first == 0) {
+						for (auto iterass = chxtdb.begin(); iterass != chxtdb.end(); iterass++) {
+							if (offPlayer::getRealName(wp) == iterass->first) {
+								liteloader::runcmdEx("plt remove \"" + offPlayer::getRealName(wp)+"\"");
+								wp.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 删除成功!已恢复默认称号-§g玩家");
+								return;
+							}
+						}
+						wp.sendText(u8"§l§6[§eMCBE §bFINE§6]§r 删除失败!你没有使用任何称号");
+					}
+					}));
+			}
+		}
+		}));
+}
+
+enum class chxt :int {
+	set = 1,
+	remove =2
+};
+bool oncmd_chxts(CommandOrigin const& ori, CommandOutput& outp, MyEnum<chxt> op, string playername, optional<string> num) {
+	vector<Player*> plist = liteloader::getAllPlayers();
+	Player* A = nullptr;
+	for (auto p : plist) {
+		if (offPlayer::getRealName(p) == playername) {
+			A = p;
+			break;
+		}
+	}
+	if (A) {
+		switch (op.val)
+		{
+		case chxt::set: {
+			if (!num.set) {
+				outp.error(u8"§l§6[§eMCBE §bFINE§6]§r 必须设置一个有效的名称");
+				return false;
+			}
+			auto planme = offPlayer::getRealName(A);
+			string chname = num.val();
+			chxtdb[planme] = chname;
+			chdb->put(planme, chname);
+			outp.success(u8"§l§6[§eMCBE §bFINE§6]§r 设置成功!设置的称号-" + chname);
+			return true;
+		}
+		case chxt::remove: {
+			auto planme = offPlayer::getRealName(A);
+			for (auto iterass = chxtdb.begin(); iterass != chxtdb.end(); iterass++) {
+				if (offPlayer::getRealName(A) == iterass->first) {
+					chxtdb.erase(planme);
+					chdb->del(planme);
+					outp.success(u8"§l§6[§eMCBE §bFINE§6]§r 删除成功!已恢复默认称号-§g玩家");
+					return true;
+				}
+			}
+			outp.success(u8"§l§6[§eMCBE §bFINE§6]§r 删除失败!你没有使用任何称号");
+			return true;
+		}
+		}
+	}
 }
 /*
 std::unique_ptr<KVDBImpl> bossdb;
@@ -570,12 +754,17 @@ void entry_bossbar() {
 */
 void REGCMD() {
 	loadCNAME();
+	loadchxtdb();
 	//entry_bossbar();
 	Event::addEventListener([](RegCmdEV e) {
 		CMDREG::SetCommandRegistry(e.CMDRg);
 		CEnum<JQZQOP> _4("jzqz", { "open","close" });
 		//MakeCommand("build", u8"建筑模式", 0);
 		//CmdOverload(build, oncmd_jzqz, u8"选项", u8"放置数");
+		MakeCommand("iplist", u8"查询线路使用情况", 0);
+		CmdOverload(iplist, oncmd_serveriplist);
+		MakeCommand("playeriplist", u8"查询玩家使用线路", 0);
+		CmdOverload(playeriplist, oncmd_serveripplayerlist);
 		if(ENABLERUNAS){
 			MakeCommand("runas", "runas player", 1);
 			CmdOverload(runas, onRunAS, "target", "command");
@@ -591,13 +780,18 @@ void REGCMD() {
 		CEnum<BANOP> _1("banop", { "ban","unban","banip" ,"getdeviceid"});
 		CEnum<BANOP_LIST> _2("banoplist", { "list" });
 		CEnum<CNAMEOP> _3("cnameop", { "set","rm" });
+		CEnum<chxt> _5("chop", {"set","remove" });
+		MakeCommand("pltgui", u8"称号菜单", 0);
+		CmdOverload(pltgui, oncmd_chxt);
+		MakeCommand("plt", u8"称号管理员菜单", 1);
+		CmdOverload(plt, oncmd_chxts, u8"选项",u8"玩家", u8"名称");
 		if (ENABLEGMODE) {
 			MakeCommand("gmode", "set your gametype", 1);
 			CmdOverload(gmode, oncmd_gmode, "target", "mode");
 		}
 		if (ENABLEBAN)
 		{
-			MakeCommand("ban", "blacklist", 1);
+			MakeCommand("ban", u8"封禁系统", 1);
 			CmdOverload(ban, onCMD_Ban, "op", "target", "time");
 			CmdOverload(ban, onCMD_BanList, "list");
 		}
@@ -608,12 +802,12 @@ void REGCMD() {
 		MakeCommand("hreload", "reload cmdhelper", 1);
 		CmdOverload(hreload, onReload);
 		if (ENABLESKICK) {
-			MakeCommand("skick", "force kick", 1);
+			MakeCommand("skick", u8"强制踢人", 1);
 			CmdOverload(skick, onCMD_skick, "target","reason");
 		}
 		if (ENABLECNAME) {
-			MakeCommand("cname", "custom name", 1);
-			CmdOverload(cname, onCMD_CNAME, "op", "target", "name");
+			MakeCommand("cname", u8"自定义名称", 1);
+			CmdOverload(cname, onCMD_CNAME, u8"选项", "target", "name");
 		}
 		if (ENABLEVANISH) {
 			MakeCommand("vanish", "hide yourself", 1);
@@ -888,7 +1082,25 @@ vector<string> isWord(string str) {
 	}
 	return words;
 }
-
+vector<string> isWords(string str) {
+	vector<string> words;
+	int t = 0, i = 0, w = 0;
+	string word;
+	while (i < str.length()) {
+		while (str[i] == ':')
+			i++;
+		t = i;
+		w = 0;
+		while (str[i] != ':' && i < str.length())
+		{
+			i++;
+			w++;
+		}
+		word = str.substr(t, w);
+		words.push_back(word);
+	}
+	return words;
+}
 bool isssad(string a1) {
 	int t = 0, i = 0, w = 0;
 	while (i < a1.length()) {
@@ -901,9 +1113,43 @@ bool isssad(string a1) {
 	}
 	return 0;
 }
+bool IsLocalIP(const string& ipstring)
+{
+	istringstream st(ipstring);
+	int ip[2];
+	for (int i = 0; i < 2; i++)
+	{
+		string temp;
+		getline(st, temp, '.');
+		istringstream a(temp);
+		a >> ip[i];
+	}
+	if ((ip[0] == 10) || (ip[0] == 172 && ip[1] >= 16 && ip[1] <= 31) || (ip[0] == 192 && ip[1] == 168))
+		return true;
+	else return false;
+}
+
+bool isFineip(string a1) {
+	switch (H(a1)) {
+	case H("sh.ifine.eu"):return true;
+	case H("sh2.ifine.eu"):return true;
+	case H("nj.ifine.eu"):return true;
+	case H("gz1.ifine.eu"):return true;
+	case H("gz2.ifine.eu"):return true;
+	case H("bj.ifine.eu"):return true;
+	case H("bj2.ifine.eu"):return true;
+	case H("sjc.ifine.eu"):return true;
+	}
+	if (IsLocalIP(a1)) {
+		return true;
+	}
+	if (a1=="127.0.0.1") {
+		return true;
+	}
+	return false;
+}
 #include <ezmc/Core/ConnectionRequest.h>
 using namespace rapidjson;
-unordered_map<string, int> DeviceOS;
 THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdentifier@@AEBVConnectionRequest@@AEAVServerPlayer@@@Z",
 	ServerNetworkHandler* nh, NetworkIdentifier* a2, ConnectionRequest* a3, ServerPlayer* a4) {
 	string mstr3 = "";
@@ -932,7 +1178,7 @@ THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdenti
 			}
 		}
 	}
-	LOG1 << u8"玩家：" << a4->getNameTag() << u8" 的DeviceId：" << mstr3 << u8" 的DeviceOS：" << out  << u8"线路："<< serverip << endl;
+	LOG1 << u8"玩家：" << a4->getNameTag() << u8" 的DeviceId：" << mstr3 << u8" 的DeviceOS：" << out  << u8" 线路："<< serverip << endl;
 	auto be1 = getBanEntry(offPlayer::getXUIDString(a4));
 	auto IP = liteloader::getIP(*a2);
 	auto be2 = getBanEntry(IP);
@@ -956,7 +1202,14 @@ THook(void, "?sendLoginMessageLocal@ServerNetworkHandler@@QEAAXAEBVNetworkIdenti
 			}
 		}
 	}
+	auto serverips = isWords(serverip);
+	if (!isFineip(serverips[0])) {
+		nh->disconnectClient(*a2, u8"§6[§eMCBE FINE§6]§a未认证域名/IP，连接已被拒绝！", 0);
+	};
 	DeviceOS[offPlayer::getRealName(a4)] = out;
+	ServerAddress[offPlayer::getRealName(a4)] = serverips[0];
 	return original(nh, a2, a3, a4);
 }
+
+
 
